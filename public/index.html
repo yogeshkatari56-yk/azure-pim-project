@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microsoft Azure - Privileged Identity Management</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- ==================== 1. MICROSOFT AUTHENTICATION CARD ==================== -->
+  <div id="loginView" class="login-wrapper">
+    <div class="login-card">
+      <div class="login-header">
+        <svg class="azure-logo-lg" viewBox="0 0 96 96" fill="none">
+          <path d="M43.2 12L12 66.8L37.6 84H84L43.2 12Z" fill="#0078D4"/>
+          <path d="M52.8 12L38 48.6L49.6 63.6L70.4 46.8L52.8 12Z" fill="#50E6FF"/>
+          <path d="M37.6 84L49.6 63.6L12 66.8L37.6 84Z" fill="#1490DF"/>
+        </svg>
+        <span class="ms-brand">Microsoft Azure</span>
+      </div>
+
+      <!-- Auth Switcher Tabs -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab-btn active" id="tabSignInBtn">Sign in</button>
+        <button type="button" class="auth-tab-btn" id="tabRegisterBtn">Create account</button>
+      </div>
+
+      <!-- FORM A: SIGN IN -->
+      <form id="loginForm" class="auth-form-pane">
+        <h2>Sign in</h2>
+        <p class="login-desc">to continue to Privileged Identity Management (PIM)</p>
+
+        <div class="form-row">
+          <input type="email" id="loginEmail" placeholder="Email, phone, or Skype" required class="login-input" />
+        </div>
+        <div class="form-row">
+          <input type="password" id="loginPassword" placeholder="Password" required class="login-input" />
+        </div>
+        <div id="loginError" class="login-error-msg"></div>
+
+        <button type="submit" class="btn btn-azure btn-full mt-10">Sign in</button>
+
+        <!-- Quick Fill Buttons for Demonstration -->
+        <div class="quick-credentials">
+          <span class="quick-title">Quick Demo Sign-In:</span>
+          <button type="button" class="quick-btn superadmin-quick" onclick="fillLogin('superadminazure@gmail.com', 'superadmin@123')">
+            <i class="fa-solid fa-crown"></i> SuperAdmin (Full Authority)
+          </button>
+          <button type="button" class="quick-btn admin-quick" onclick="fillLogin('admin@contoso.com', 'admin@123')">
+            <i class="fa-solid fa-user-gear"></i> Admin (Manager)
+          </button>
+          <button type="button" class="quick-btn user-quick" onclick="fillLogin('user@contoso.com', 'user@123')">
+            <i class="fa-solid fa-user"></i> User (Engineer)
+          </button>
+        </div>
+      </form>
+
+      <!-- FORM B: CREATE ACCOUNT / REGISTER -->
+      <form id="registerForm" class="auth-form-pane" style="display: none;">
+        <h2>Create account</h2>
+        <p class="login-desc">Register a new engineer identity in Entra ID</p>
+
+        <div class="form-row">
+          <label class="field-label">Full Name</label>
+          <input type="text" id="regName" placeholder="e.g., Yogesh Kanna" required class="login-input" />
+        </div>
+        <div class="form-row">
+          <label class="field-label">Work Email</label>
+          <input type="email" id="regEmail" placeholder="e.g., yogesh@contoso.com" required class="login-input" />
+        </div>
+        <div class="form-row">
+          <label class="field-label">Department</label>
+          <input type="text" id="regDept" placeholder="e.g., Cloud Architecture / DevOps" class="login-input" />
+        </div>
+        <div class="form-row">
+          <label class="field-label">Password (Min. 6 chars)</label>
+          <input type="password" id="regPassword" placeholder="Create strong password" required class="login-input" />
+        </div>
+        <div class="form-row">
+          <label class="field-label">Confirm Password</label>
+          <input type="password" id="regConfirmPassword" placeholder="Re-enter password" required class="login-input" />
+        </div>
+        <div id="regError" class="login-error-msg"></div>
+        <div id="regSuccess" class="login-success-msg"></div>
+
+        <button type="submit" class="btn btn-azure btn-full mt-10">Register Account</button>
+        <p class="terms-note">Note: Newly created accounts must be verified by the SuperAdmin before requesting elevated privileges.</p>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ==================== 2. MAIN AZURE PORTAL (POST-LOGIN) ==================== -->
+  <div id="portalView" class="portal-wrapper" style="display: none;">
+    <header class="azure-topbar">
+      <div class="topbar-left">
+        <button class="nav-toggle" id="sidebarToggle"><i class="fa-solid fa-bars"></i></button>
+        <div class="brand">
+          <svg class="azure-logo" viewBox="0 0 96 96" fill="none">
+            <path d="M43.2 12L12 66.8L37.6 84H84L43.2 12Z" fill="#0078D4"/>
+            <path d="M52.8 12L38 48.6L49.6 63.6L70.4 46.8L52.8 12Z" fill="#50E6FF"/>
+            <path d="M37.6 84L49.6 63.6L12 66.8L37.6 84Z" fill="#1490DF"/>
+          </svg>
+          <span class="portal-title">Microsoft Azure</span>
+        </div>
+      </div>
+
+      <div class="active-badge-container">
+        <span class="role-pill-badge" id="currentRolePill">USER</span>
+      </div>
+
+      <div class="topbar-right">
+        <button class="tool-btn rbac-superadmin-only" id="openFullInspectionBtn" title="GET Full Information of PIM (SuperAdmin only)">
+          <i class="fa-solid fa-database"></i>
+          <span>Full PIM Telemetry (GET)</span>
+        </button>
+        <button class="tool-btn emergency-btn rbac-superadmin-only" id="openBreakGlassModalBtn" title="Emergency Access (SuperAdmin Only)">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>Break-Glass (P0)</span>
+        </button>
+        <button class="tool-btn" id="openFlowChartBtn" title="View PIM Architecture Flow Chart">
+          <i class="fa-solid fa-diagram-project"></i>
+          <span>Flow Architecture</span>
+        </button>
+
+        <div class="user-profile">
+          <div class="avatar" id="avatarDisplay">US</div>
+          <div class="user-meta">
+            <span class="user-name" id="userNameDisplay">Standard User</span>
+            <span class="tenant-name" id="userEmailDisplay">user@contoso.com</span>
+          </div>
+          <button class="btn btn-outline btn-sm ml-10" id="signOutBtn" title="Sign out of Azure"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-layout">
+      <aside class="azure-sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <i class="fa-solid fa-shield-halved text-azure"></i>
+          <span>Entra Governance</span>
+        </div>
+        <nav class="sidebar-nav">
+          <a href="#" class="nav-item active" data-tab="tab-jit">
+            <i class="fa-solid fa-user-shield"></i>
+            <span>My Roles & JIT Access</span>
+          </a>
+          <a href="#" class="nav-item rbac-admin-up" data-tab="tab-approvals">
+            <i class="fa-solid fa-clipboard-check"></i>
+            <span>Approve Requests</span>
+            <span class="counter-badge" id="approvalCounter">0</span>
+          </a>
+          <a href="#" class="nav-item rbac-superadmin-up" data-tab="tab-identities">
+            <i class="fa-solid fa-users-gear"></i>
+            <span>User & Admin Management</span>
+          </a>
+          <a href="#" class="nav-item" data-tab="tab-resources">
+            <i class="fa-solid fa-server"></i>
+            <span>Azure Resource Gate</span>
+          </a>
+          <a href="#" class="nav-item rbac-superadmin-up" data-tab="tab-settings">
+            <i class="fa-solid fa-sliders"></i>
+            <span>Role Policy Settings</span>
+          </a>
+          <a href="#" class="nav-item rbac-admin-up" data-tab="tab-audit">
+            <i class="fa-solid fa-file-shield"></i>
+            <span>Audit & Compliance Trail</span>
+          </a>
+        </nav>
+        <div class="sidebar-rbac-note">
+          <i class="fa-solid fa-circle-info"></i>
+          <span id="sidebarRbacMsg">Logged in session.</span>
+        </div>
+      </aside>
+
+      <main class="azure-main">
+        <div class="breadcrumb-bar">
+          <span>Home</span> <i class="fa-solid fa-chevron-right separator"></i>
+          <span>Identity Governance</span> <i class="fa-solid fa-chevron-right separator"></i>
+          <span class="current-crumb">Privileged Identity Management</span>
+        </div>
+
+        <!-- Tab 1: My Roles & JIT Request Elevation -->
+        <section class="tab-pane active" id="tab-jit">
+          <div class="page-title-row">
+            <div>
+              <h1>Privileged Identity Management | My Roles</h1>
+              <p class="subtitle">Activate eligible roles Just-In-Time to eliminate standing administrator privileges.</p>
+            </div>
+            <button class="btn btn-azure" id="openRequestModalBtn">
+              <i class="fa-solid fa-plus"></i> Request Role Elevation
+            </button>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon bg-blue"><i class="fa-solid fa-key"></i></div>
+              <div>
+                <div class="stat-num" id="statEligibleCount">4</div>
+                <div class="stat-label">Eligible Roles Available</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon bg-green"><i class="fa-solid fa-lock-open"></i></div>
+              <div>
+                <div class="stat-num text-success" id="statActiveCount">0</div>
+                <div class="stat-label">Currently Active Roles</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon bg-amber"><i class="fa-solid fa-clock-rotate-left"></i></div>
+              <div>
+                <div class="stat-num text-warning" id="statPendingCount">0</div>
+                <div class="stat-label">Awaiting Approval</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon bg-gray"><i class="fa-solid fa-circle-xmark"></i></div>
+              <div>
+                <div class="stat-num" id="statExpiredCount">0</div>
+                <div class="stat-label">Auto-Revoked Today</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-container">
+            <div class="section-header">
+              <h3><i class="fa-solid fa-stopwatch text-azure"></i> Live Active Just-In-Time Sessions</h3>
+              <span class="pulse-indicator"><span class="pulsing-circle"></span> Live Sync Enabled</span>
+            </div>
+            <div id="activeRolesContainer" class="active-cards-grid"></div>
+          </div>
+
+          <div class="section-container mt-24">
+            <div class="section-header">
+              <h3><i class="fa-solid fa-table-list text-azure"></i> Elevation Requests & Assignments</h3>
+              <div class="table-actions">
+                <input type="text" id="requestSearchInput" placeholder="Filter requests..." class="search-input">
+                <button class="btn btn-outline" id="refreshTableBtn"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="azure-table">
+                <thead>
+                  <tr>
+                    <th>Request ID</th>
+                    <th>Role Name</th>
+                    <th>Target Scope</th>
+                    <th>Ticket / Justification</th>
+                    <th>Status</th>
+                    <th>Time Remaining</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="requestsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 2: Approver Queue -->
+        <section class="tab-pane" id="tab-approvals">
+          <div class="page-title-row">
+            <div>
+              <h1>Approver Dashboard | Activation Requests</h1>
+              <p class="subtitle">Review and authorize temporary privilege escalation requests from operators.</p>
+            </div>
+          </div>
+          <div class="section-container">
+            <div class="section-header">
+              <h3><i class="fa-solid fa-inbox text-azure"></i> Pending Authorization Requests</h3>
+            </div>
+            <div id="approvalQueueContainer" class="approvals-grid"></div>
+          </div>
+        </section>
+
+        <!-- Tab 3: SuperAdmin User & Admin Governance -->
+        <section class="tab-pane" id="tab-identities">
+          <div class="page-title-row">
+            <div>
+              <h1>SuperAdmin Identity Authority: Promote & Demote Users</h1>
+              <p class="subtitle">SuperAdmin can verify newly registered users, grant JIT access, promote to Admin, or demote to User.</p>
+            </div>
+          </div>
+          <div class="section-container">
+            <div class="table-responsive">
+              <table class="azure-table">
+                <thead>
+                  <tr>
+                    <th>Identity & Email</th>
+                    <th>Current Role</th>
+                    <th>Verified Status</th>
+                    <th>JIT Access Allowed</th>
+                    <th>Promote / Demote Action</th>
+                    <th>Save Permissions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersVerificationTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 4: Azure Resource Gate -->
+        <section class="tab-pane" id="tab-resources">
+          <div class="page-title-row">
+            <div>
+              <h1>Target Resource Enforcement Playground</h1>
+              <p class="subtitle">Zero-Trust demonstration: Cloud resources are blocked until an eligible role is activated.</p>
+            </div>
+          </div>
+          <div class="section-container">
+            <div class="section-header">
+              <h3><i class="fa-solid fa-server text-azure"></i> Production Azure Cloud Assets</h3>
+            </div>
+            <div id="resourceGridContainer" class="resources-grid"></div>
+          </div>
+        </section>
+
+        <!-- Tab 5: Policy Configuration -->
+        <section class="tab-pane" id="tab-settings">
+          <div class="page-title-row">
+            <div>
+              <h1>Role Settings & Governance Policies (SuperAdmin Clearance)</h1>
+              <p class="subtitle">Configure max session durations, required approvals, and MFA mandates per role.</p>
+            </div>
+          </div>
+          <div class="section-container">
+            <div class="table-responsive">
+              <table class="azure-table">
+                <thead>
+                  <tr>
+                    <th>Role Name</th>
+                    <th>Scope</th>
+                    <th>Max Duration</th>
+                    <th>Approval Required</th>
+                    <th>MFA Required</th>
+                    <th>Approvers</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="policyTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab 6: Audit & Compliance Trail -->
+        <section class="tab-pane" id="tab-audit">
+          <div class="page-title-row">
+            <div>
+              <h1>Security Audit & Compliance Logs</h1>
+              <p class="subtitle">Persistent tamper-evident log of all elevation attempts, approvals, and automated expirations.</p>
+            </div>
+            <div class="action-btn-group">
+              <button class="btn btn-outline" id="exportCsvBtn"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+              <button class="btn btn-outline" id="exportJsonBtn"><i class="fa-solid fa-code"></i> Export JSON</button>
+            </div>
+          </div>
+          <div class="section-container">
+            <div class="audit-terminal-wrapper">
+              <div class="terminal-bar">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+                <span class="terminal-title">Azure PIM Audit Ledger (MySQL Workbench Schema)</span>
+              </div>
+              <div id="auditLogStream" class="audit-stream"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Standard Request Modal -->
+  <div class="modal-overlay" id="requestModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="header-with-icon">
+          <i class="fa-solid fa-shield-alt text-azure"></i>
+          <h3>Activate Eligible Role (Just-In-Time)</h3>
+        </div>
+        <button class="modal-close" id="closeRequestModalBtn">&times;</button>
+      </div>
+      <form id="submitRequestForm">
+        <div class="modal-body">
+          <div class="banner info-banner">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>This role assignment is temporary. Privileges are revoked automatically when the session timer expires.</span>
+          </div>
+
+          <div class="form-row">
+            <label>Requestor Identity</label>
+            <input type="text" id="reqUser" readonly class="input-readonly">
+          </div>
+
+          <div class="form-row">
+            <label>Select Eligible Role *</label>
+            <select id="reqRoleSelect" required class="select-input"></select>
+          </div>
+
+          <div class="form-row">
+            <label>Activation Duration (Min 1 Hour - Max 8 Hours) *</label>
+            <div class="duration-grid">
+              <label class="duration-option">
+                <input type="radio" name="duration" value="3600" checked>
+                <span><strong>1 Hour</strong></span>
+              </label>
+              <label class="duration-option">
+                <input type="radio" name="duration" value="7200">
+                <span><strong>2 Hours</strong></span>
+              </label>
+              <label class="duration-option">
+                <input type="radio" name="duration" value="14400">
+                <span><strong>4 Hours</strong></span>
+              </label>
+              <label class="duration-option">
+                <input type="radio" name="duration" value="28800">
+                <span><strong>8 Hours</strong> (Max)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>Ticket / Incident ID (Optional)</label>
+            <input type="text" id="reqTicket" placeholder="e.g. INC-82910 or JIRA-4029" class="text-input">
+          </div>
+
+          <div class="form-row">
+            <label>Business Justification *</label>
+            <textarea id="reqJustification" rows="2" placeholder="Explain why elevated access is required..." required class="textarea-input"></textarea>
+          </div>
+
+          <div class="form-row" id="mfaGroup">
+            <label>Microsoft Entra MFA Verification Code * <small class="text-azure">(Demo Code: 123456)</small></label>
+            <input type="text" id="reqMfaCode" placeholder="Enter 6-digit OTP (123456)" required class="text-input">
+          </div>
+
+          <div class="policy-preview" id="policyPreviewBox"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="cancelRequestBtn">Cancel</button>
+          <button type="submit" class="btn btn-azure">Submit Activation Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Break-Glass Modal -->
+  <div class="modal-overlay" id="breakGlassModal">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <div class="header-with-icon">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <h3>Emergency Break-Glass Activation (P0 Incident)</h3>
+        </div>
+        <button class="modal-close text-white" id="closeBreakGlassModalBtn">&times;</button>
+      </div>
+      <form id="submitBreakGlassForm">
+        <div class="modal-body">
+          <div class="banner danger-banner">
+            <i class="fa-solid fa-shield-virus"></i>
+            <span>Authorized for SuperAdmin only. Bypasses normal approval queues for mission-critical response. Logged with P0 Emergency severity.</span>
+          </div>
+
+          <div class="form-row">
+            <label>Authorized SuperAdmin Identity</label>
+            <input type="text" id="bgUser" readonly class="input-readonly">
+          </div>
+
+          <div class="form-row">
+            <label>Emergency Target Role</label>
+            <select id="bgRoleSelect" class="select-input"></select>
+          </div>
+
+          <div class="form-row">
+            <label>Critical Incident Ticket # *</label>
+            <input type="text" id="bgTicket" placeholder="e.g. CRIT-OUTAGE-911" required class="text-input">
+          </div>
+
+          <div class="form-row">
+            <label>Outage Justification & Immediate Impact *</label>
+            <textarea id="bgJustification" rows="3" placeholder="Describe the active outage..." required class="textarea-input"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="cancelBreakGlassBtn">Cancel</button>
+          <button type="submit" class="btn btn-danger">Execute Break-Glass Elevation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Full PIM Information Inspection Modal -->
+  <div class="modal-overlay" id="fullInspectionModal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <div class="header-with-icon">
+          <i class="fa-solid fa-database text-azure"></i>
+          <h3>Full PIM System Telemetry (SuperAdmin GET View)</h3>
+        </div>
+        <button class="modal-close" id="closeInspectionModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="telemetry-bar">
+          <div>Endpoint: <code>GET /api/pim/full-inspection</code></div>
+          <button class="btn btn-azure btn-sm" id="reloadTelemetryBtn"><i class="fa-solid fa-arrows-rotate"></i> Refresh Telemetry</button>
+        </div>
+        <pre class="telemetry-json-viewer" id="telemetryJsonBox">Loading system telemetry...</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flow Chart Modal -->
+  <div class="modal-overlay" id="flowChartModal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <div class="header-with-icon">
+          <i class="fa-solid fa-diagram-project text-azure"></i>
+          <h3>Azure Privileged Identity Management: Flow Architecture</h3>
+        </div>
+        <button class="modal-close" id="closeFlowModalBtn">&times;</button>
+      </div>
+      <div class="modal-body flowchart-body">
+        <div class="flowchart-container">
+          <div class="flow-step">
+            <div class="step-num">1</div>
+            <div class="step-box">
+              <h4>SuperAdmin Directory Verification</h4>
+              <p>SuperAdmin verifies User/Admin & promotes/demotes roles before elevations can be authorized</p>
+            </div>
+          </div>
+          <div class="flow-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+          <div class="flow-step">
+            <div class="step-num">2</div>
+            <div class="step-box">
+              <h4>Request JIT Elevation</h4>
+              <p>User specifies justification, ticket ID, and duration; validates MFA</p>
+            </div>
+          </div>
+          <div class="flow-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+          <div class="flow-step">
+            <div class="step-num">3</div>
+            <div class="step-box branch-box">
+              <h4>Approval or Emergency Break-Glass?</h4>
+              <div class="branch-pill-group">
+                <span class="badge-yes">Standard: Approver Sign-off Required</span>
+                <span class="badge-no">Break-Glass: Direct P0 Elevation</span>
+              </div>
+            </div>
+          </div>
+          <div class="flow-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+          <div class="flow-step">
+            <div class="step-num">4</div>
+            <div class="step-box success-step">
+              <h4>Temporary Privilege Activated</h4>
+              <p>Real-time countdown starts; Azure Resource Gate unlocks protected services</p>
+            </div>
+          </div>
+          <div class="flow-arrow"><i class="fa-solid fa-arrow-down"></i></div>
+          <div class="flow-step">
+            <div class="step-num">5</div>
+            <div class="step-box expired-step">
+              <h4>Automatic Role Revocation & Audit</h4>
+              <p>Background scheduler revokes access instantly; zero standing privileges remaining</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+  <script src="app.js"></script>
+</body>
+</html>
+
